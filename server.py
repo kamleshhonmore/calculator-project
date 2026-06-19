@@ -25,8 +25,9 @@ class CalculatorAPIHandler(http.server.BaseHTTPRequestHandler):
         Handles POST requests (calculating expressions).
         Route: http://localhost:5000/calculate
         """
-        # Use urlparse to extract the path portion robustly
+        print(f"DEBUG POST - raw self.path: {self.path}")
         parsed_path = urlparse(self.path).path.rstrip('/')
+        print(f"DEBUG POST - parsed_path: {parsed_path}")
         if parsed_path == "/calculate":
             content_length = int(self.headers['Content-Length'])
             raw_post_data = self.rfile.read(content_length)
@@ -60,7 +61,9 @@ class CalculatorAPIHandler(http.server.BaseHTTPRequestHandler):
         Handles GET requests (fetching calculation history).
         Route: http://localhost:5000/history
         """
+        print(f"DEBUG GET - raw self.path: {self.path}")
         parsed_path = urlparse(self.path).path.rstrip('/')
+        print(f"DEBUG GET - parsed_path: {parsed_path}")
         if parsed_path == "/history":
             try:
                 history_list = database.get_recent_history(10)
