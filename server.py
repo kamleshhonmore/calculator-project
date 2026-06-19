@@ -7,10 +7,11 @@
 
 import http.server
 import json
+import os
 import database
 import math_engine
 
-PORT = 5000
+PORT = int(os.getenv("PORT", 5000))
 
 class CalculatorAPIHandler(http.server.BaseHTTPRequestHandler):
     """
