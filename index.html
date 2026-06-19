@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Calculator Client</title>
+    <!-- Modern Font: Inter and digital-like font for LCD screen -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --window-bg: #0a1d37;
+            --panel-bg: #11223b;
+            --text-color: #ffffff;
+            --text-muted: #93c5fd;
+            --lcd-bg: #c2e9fb;
+            --lcd-text: #0a1d37;
+            
+            --btn-num-bg: #e0f2fe;
+            --btn-num-hover: #bae6fd;
+            --btn-num-text: #0f172a;
+            
+            --btn-op-bg: #38bdf8;
+            --btn-op-hover: #0ea5e9;
+            --btn-op-text: #ffffff;
+            
+            --btn-special-bg: #ef4444;
+            --btn-special-hover: #dc2626;
+            --btn-special-text: #ffffff;
+            
+            --btn-sci-bg: #1b3b5f;
+            --btn-sci-hover: #1e4b7a;
+            --btn-sci-text: #93c5fd;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Main Container: Calculator + History Side-by-Side */
+        .app-container {
+            background-color: var(--window-bg);
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+            padding: 24px;
+            display: flex;
+            gap: 24px;
+            width: 100%;
+            max-width: 820px;
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+                max-width: 440px;
+            }
+        }
+
+        /* --- LEFT PANEL: CALCULATOR --- */
+        .calculator-panel {
+            flex: 1.6;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* LCD Screen Bezel */
+        .screen-bezel {
+            background-color: #112233;
+            border: 3px solid #1e293b;
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 16px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+        }
+
+        /* LCD Screen Inner */
+        .lcd-screen {
+            background-color: var(--lcd-bg);
+            border-radius: 4px;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            min-height: 84px;
+            justify-content: space-between;
+            color: var(--lcd-text);
+            box-shadow: inset 0 2px 2px rgba(0,0,0,0.2);
+        }
+
+        .lcd-top-row {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            font-family: 'Share Tech Mono', monospace;
+            color: rgba(10, 29, 55, 0.6);
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .lcd-main {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 32px;
+            font-weight: bold;
+            word-break: break-all;
+            text-align: right;
+            line-height: 1.1;
+            width: 100%;
+        }
+
+        /* Angle Mode Switch Button */
+        .angle-control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .angle-label {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .toggle-btn {
+            background-color: var(--btn-sci-bg);
+            color: var(--btn-sci-text);
+            border: 1px solid #1e40af;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-btn:hover {
+            background-color: var(--btn-sci-hover);
+        }
+
+        /* Keypad Grid (7 Columns) */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            height: 48px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            box-shadow: 0 2px 0px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
+        /* Numeric Keys */
+        .btn-num {
+            background-color: var(--btn-num-bg);
+            color: var(--btn-num-text);
+        }
+        .btn-num:hover {
+            background-color: var(--btn-num-hover);
+        }
+
+        /* Operator Keys */
+        .btn-op {
+            background-color: var(--btn-op-bg);
+            color: var(--btn-op-text);
+        }
+        .btn-op:hover {
+            background-color: var(--btn-op-hover);
+        }
+
+        /* Special Keys (C, Backspace) */
+        .btn-special {
+            background-color: var(--btn-special-bg);
+            color: var(--btn-special-text);
+            font-weight: 700;
+        }
+        .btn-special:hover {
+            background-color: var(--btn-special-hover);
+        }
+
+        /* Scientific Keys */
+        .btn-sci {
+            background-color: var(--btn-sci-bg);
+            color: var(--btn-sci-text);
+            font-size: 12px;
+        }
+        .btn-sci:hover {
+            background-color: var(--btn-sci-hover);
+        }
+
+        /* --- RIGHT PANEL: HISTORY --- */
+        .history-panel {
+            flex: 0.9;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #1e293b;
+        }
+
+        .history-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 280px;
+            margin-bottom: 16px;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .history-item {
+            background-color: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #e2e8f0;
+        }
+
+        .history-item:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            transform: translateX(4px);
+            color: var(--text-muted);
+        }
+
+        .refresh-btn {
+            background-color: var(--btn-sci-bg);
+            color: #ffffff;
+            border: 1px solid #1e40af;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .refresh-btn:hover {
+            background-color: var(--btn-sci-hover);
+        }
+
+        /* Customize Scrollbar for History */
+        .history-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .history-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .history-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .history-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <!-- LEFT PANEL: CALCULATOR -->
+    <div class="calculator-panel">
+        
+        <!-- Screen Bezel -->
+        <div class="screen-bezel">
+            <div class="lcd-screen">
+                <div class="lcd-top-row">
+                    <span id="lcd-mode">SCIENTIFIC</span>
+                    <span id="lcd-angle">DEG</span>
+                </div>
+                <div id="lcd-main" class="lcd-main">0</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="angle-control-row">
+            <span class="angle-label">ANGLE MODE CONTROL:</span>
+            <button id="toggle-angle" class="toggle-btn" onclick="toggleAngleMode()">Switch to RAD</button>
+        </div>
+
+        <!-- Keypad (7x5 Grid) -->
+        <div class="keypad">
+            <!-- Row 1 -->
+            <button class="btn btn-sci" onclick="press('sin')">sin</button>
+            <button class="btn btn-sci" onclick="press('cos')">cos</button>
+            <button class="btn btn-sci" onclick="press('tan')">tan</button>
+            <button class="btn btn-special" onclick="clearScreen()">C</button>
+            <button class="btn btn-special" onclick="press('(')">(</button>
+            <button class="btn btn-special" onclick="press(')')">)</button>
+            <button class="btn btn-op" onclick="press('/')">/</button>
+
+            <!-- Row 2 -->
+            <button class="btn btn-sci" onclick="press('√')">√</button>
+            <button class="btn btn-sci" onclick="press('^')">^</button>
+            <button class="btn btn-sci" onclick="press('x²')">x²</button>
+            <button class="btn btn-num" onclick="press('7')">7</button>
+            <button class="btn btn-num" onclick="press('8')">8</button>
+            <button class="btn btn-num" onclick="press('9')">9</button>
+            <button class="btn btn-op" onclick="press('*')">*</button>
+
+            <!-- Row 3 -->
+            <button class="btn btn-sci" onclick="press('ln')">ln</button>
+            <button class="btn btn-sci" onclick="press('log')">log</button>
+            <button class="btn btn-sci" onclick="press('1/x')">1/x</button>
+            <button class="btn btn-num" onclick="press('4')">4</button>
+            <button class="btn btn-num" onclick="press('5')">5</button>
+            <button class="btn btn-num" onclick="press('6')">6</button>
+            <button class="btn btn-op" onclick="press('-')">-</button>
+
+            <!-- Row 4 -->
+            <button class="btn btn-sci" onclick="press('π')">π</button>
+            <button class="btn btn-sci" onclick="press('e')">e</button>
+            <button class="btn btn-sci" onclick="press('fact')">fact</button>
+            <button class="btn btn-num" onclick="press('1')">1</button>
+            <button class="btn btn-num" onclick="press('2')">2</button>
+            <button class="btn btn-num" onclick="press('3')">3</button>
+            <button class="btn btn-op" onclick="press('+')">+</button>
+
+            <!-- Row 5 -->
+            <button class="btn btn-sci" onclick="press('abs')">abs</button>
+            <button class="btn btn-sci" onclick="press('10\u1d6a')">10\u1d6a</button>
+            <button class="btn btn-sci" onclick="press('%')">%</button>
+            <button class="btn btn-special" onclick="backspace()">⌫</button>
+            <button class="btn btn-num" onclick="press('0')">0</button>
+            <button class="btn btn-num" onclick="press('.')">.</button>
+            <button class="btn btn-op" style="font-weight: 700;" onclick="calculate()">=</button>
+        </div>
+
+    </div>
+
+    <!-- RIGHT PANEL: HISTORY -->
+    <div class="history-panel">
+        <h2 class="history-title">Calculation History</h2>
+        <ul id="history-list" class="history-list">
+            <!-- Loaded dynamically -->
+        </ul>
+        <button class="refresh-btn" onclick="updateHistorySidebar()">Refresh History</button>
+    </div>
+
+</div>
+
+<script>
+    let expression = "";
+    let angleMode = "DEG";
+
+    const lcdMain = document.getElementById("lcd-main");
+    const lcdAngle = document.getElementById("lcd-angle");
+    const toggleAngleBtn = document.getElementById("toggle-angle");
+    const historyList = document.getElementById("history-list");
+
+    // Init page
+    window.onload = function() {
+        updateHistorySidebar();
+    };
+
+    function press(character) {
+        if (character === "x\u00b2") {
+            expression += "^2";
+        } else if (character === "1/x") {
+            if (expression === "" || expression === "0") {
+                expression = "1/(";
+            } else {
+                expression = `1/(${expression})`;
+            }
+        } else if (character === "10\u1d6a") {
+            expression += "10^(";
+        } else if (["sin", "cos", "tan", "ln", "log", "fact", "abs"].includes(character)) {
+            if (expression === "0") {
+                expression = `${character}(`;
+            } else {
+                expression += `${character}(`;
+            }
+        } else {
+            if (expression === "" && ["+", "*", "/"].includes(character)) {
+                expression = "0" + character;
+            } else {
+                expression += character;
+            }
+        }
+        updateDisplay();
+    }
+
+    function clearScreen() {
+        expression = "";
+        updateDisplay();
+    }
+
+    function backspace() {
+        expression = expression.slice(0, -1);
+        updateDisplay();
+    }
+
+    function updateDisplay() {
+        lcdMain.innerText = expression === "" ? "0" : expression;
+    }
+
+    function toggleAngleMode() {
+        if (angleMode === "DEG") {
+            angleMode = "RAD";
+            toggleAngleBtn.innerText = "Switch to DEG";
+        } else {
+            angleMode = "DEG";
+            toggleAngleBtn.innerText = "Switch to RAD";
+        }
+        lcdAngle.innerText = angleMode;
+    }
+
+    // Call API Server for Calculation
+    function calculate() {
+        if (expression === "") return;
+
+        // Display loading state
+        lcdMain.innerText = "Calculating...";
+
+        fetch("/calculate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                expression: expression,
+                angle_mode: angleMode
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error("Network error");
+            return response.json();
+        })
+        .then(data => {
+            const result = data.result;
+            lcdMain.innerText = result;
+            
+            if (!result.includes("Error") && result !== "Server Offline") {
+                expression = result;
+            } else {
+                expression = "";
+            }
+            updateHistorySidebar();
+        })
+        .catch(err => {
+            console.error("Calculation failed:", err);
+            lcdMain.innerText = "Error";
+            expression = "";
+        });
+    }
+
+    // Load History list from API
+    function updateHistorySidebar() {
+        fetch("/history")
+        .then(response => {
+            if (!response.ok) throw new Error("Network error");
+            return response.json();
+        })
+        .then(data => {
+            const items = data.history || [];
+            historyList.innerHTML = "";
+            
+            if (items.length === 0) {
+                const li = document.createElement("li");
+                li.className = "history-item";
+                li.style.cursor = "default";
+                li.innerText = "No calculations yet.";
+                historyList.appendChild(li);
+                return;
+            }
+
+            items.forEach(item => {
+                const li = document.createElement("li");
+                li.className = "history-item";
+                li.innerText = item;
+                
+                // Allow loading history back into input
+                li.onclick = () => {
+                    const parts = item.split(" = ");
+                    if (parts.length > 0) {
+                        expression = parts[0];
+                        updateDisplay();
+                    }
+                };
+                historyList.appendChild(li);
+            });
+        })
+        .catch(err => {
+            console.error("Failed to load history:", err);
+            historyList.innerHTML = "<li class='history-item' style='cursor:default;color:#ef4444;'>Server Offline</li>";
+        });
+    }
+</script>
+
+</body>
+</html>

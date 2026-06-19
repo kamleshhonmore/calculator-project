@@ -70,6 +70,21 @@ class CalculatorAPIHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json_response(200, {"status": "success", "history": history_list})
             except Exception as e:
                 self.send_json_response(500, {"status": "error", "message": str(e)})
+        elif parsed_path == "" or parsed_path == "/":
+            try:
+                script_dir = os.path.dirname(os.path.realpath(__file__))
+                file_path = os.path.join(script_dir, "index.html")
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                self.wfile.write(f"Error loading index.html: {e}".encode('utf-8'))
         else:
             self.send_json_response(404, {"error": "Not Found"})
 

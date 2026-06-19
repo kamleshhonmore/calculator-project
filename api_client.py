@@ -11,7 +11,7 @@ proxy_handler = urllib.request.ProxyHandler({})
 opener = urllib.request.build_opener(proxy_handler)
 urllib.request.install_opener(opener)
 
-API_URL = "https://calculator-server-1gf1.onrender.com"
+API_URL = "https://calculator-server-1gfl.onrender.com"
 
 def send_calculation_request(math_expr, angle_mode="DEG"):
     """
