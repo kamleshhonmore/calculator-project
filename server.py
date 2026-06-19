@@ -8,6 +8,7 @@
 import http.server
 import json
 import os
+from urllib.parse import urlparse
 import database
 import math_engine
 
@@ -24,7 +25,9 @@ class CalculatorAPIHandler(http.server.BaseHTTPRequestHandler):
         Handles POST requests (calculating expressions).
         Route: http://localhost:5000/calculate
         """
-        if self.path == "/calculate":
+        # Use urlparse to extract the path portion robustly
+        parsed_path = urlparse(self.path).path.rstrip('/')
+        if parsed_path == "/calculate":
             content_length = int(self.headers['Content-Length'])
             raw_post_data = self.rfile.read(content_length)
             
@@ -57,7 +60,8 @@ class CalculatorAPIHandler(http.server.BaseHTTPRequestHandler):
         Handles GET requests (fetching calculation history).
         Route: http://localhost:5000/history
         """
-        if self.path == "/history":
+        parsed_path = urlparse(self.path).path.rstrip('/')
+        if parsed_path == "/history":
             try:
                 history_list = database.get_recent_history(10)
                 self.send_json_response(200, {"status": "success", "history": history_list})
@@ -73,9 +77,6 @@ class CalculatorAPIHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data_dict).encode('utf-8'))
 
-    def log_message(self, format, *args):
-        """Overrides default log_message to keep terminal output clean."""
-        pass
 
 if __name__ == "__main__":
     # Initialize SQLite database through the database module
