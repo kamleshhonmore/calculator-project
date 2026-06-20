@@ -28,34 +28,57 @@ angle_mode = "DEG"             # Stores the current angle mode ("DEG" or "RAD")
 # ---------------------------------------------------------------------
 
 def press(character):
-    """Appends characters or expressions to the equation screen."""
+    """Inserts characters or expressions at the current text cursor position."""
     global expression
     
-    if character == "x²":
-        expression = expression + "^2"
-    elif character == "1/x":
-        if expression == "" or expression == "0":
-            expression = "1/("
-        else:
-            expression = f"1/({expression})"
-    elif character == "10ˣ":
-        expression = expression + "10^("
-    elif character in ["sin", "cos", "tan", "ln", "log", "fact", "abs"]:
-        if expression == "0":
-            expression = f"{character}("
-        else:
-            expression = expression + f"{character}("
+    expr = equation_text.get()
+    if expr == "0":
+        expr = ""
+        current_pos = 0
     else:
-        if expression == "" and character in ["+", "*", "/"]:
-            expression = "0" + str(character)
-        else:
-            expression = expression + str(character)
+        try:
+            current_pos = lcd_main.index(tk.INSERT)
+        except:
+            current_pos = len(expr)
             
-    equation_text.set(expression)
+    prefix = expr[:current_pos]
+    suffix = expr[current_pos:]
+    
+    if character == "1/x":
+        if expr == "" or expr == "0":
+            new_expr = "1/("
+            cursor_offset = 3
+        else:
+            new_expr = f"1/({expr})"
+            cursor_offset = len(new_expr)
+        equation_text.set(new_expr)
+        lcd_main.icursor(cursor_offset)
+        lcd_main.focus_set()
+        expression = new_expr
+        return
+
+    inserted = ""
+    if character == "x²":
+        inserted = "^2"
+    elif character == "10\u1d6a":
+        inserted = "10^("
+    elif character in ["sin", "cos", "tan", "ln", "log", "fact", "abs"]:
+        inserted = f"{character}("
+    else:
+        inserted = str(character)
+        
+    new_expr = prefix + inserted + suffix
+    equation_text.set(new_expr)
+    
+    # Put cursor right after the inserted text
+    lcd_main.icursor(current_pos + len(inserted))
+    lcd_main.focus_set()
+    expression = new_expr
 
 def calculate():
     """Sends the expression to the API server and displays the answer."""
     global expression
+    expression = equation_text.get()
     
     if expression == "":
         return
@@ -70,21 +93,45 @@ def calculate():
         expression = ""
         
     update_history_sidebar()
+    lcd_main.icursor(tk.END)
+    lcd_main.focus_set()
 
 def clear():
     """Resets the calculator input to empty."""
     global expression
     expression = ""
     equation_text.set("0")
+    lcd_main.icursor(1)
+    lcd_main.focus_set()
 
 def backspace():
-    """Removes the last character on the screen (DEL key functionality)."""
+    """Removes the character right before the cursor (standard backspace action)."""
     global expression
-    expression = expression[:-1]
-    if expression == "":
-        equation_text.set("0")
-    else:
-        equation_text.set(expression)
+    expr = equation_text.get()
+    if expr == "0" or expr == "":
+        return
+        
+    try:
+        current_pos = lcd_main.index(tk.INSERT)
+    except:
+        current_pos = len(expr)
+        
+    if current_pos > 0:
+        prefix = expr[:current_pos - 1]
+        suffix = expr[current_pos:]
+        new_expr = prefix + suffix
+        if new_expr == "":
+            new_expr = "0"
+            cursor_pos = 1
+        else:
+            cursor_pos = current_pos - 1
+        equation_text.set(new_expr)
+        lcd_main.icursor(cursor_pos)
+        
+    expression = equation_text.get()
+    if expression == "0":
+        expression = ""
+    lcd_main.focus_set()
 
 def update_history_sidebar():
     """Fetches history logs from api_client and updates the listbox."""
@@ -92,6 +139,20 @@ def update_history_sidebar():
     history_listbox.delete(0, tk.END)
     for item in history_items:
         history_listbox.insert(tk.END, item)
+
+def on_history_select(event):
+    """Loads clicked calculation history back into the calculator display."""
+    try:
+        selected_index = history_listbox.curselection()
+        if selected_index:
+            selected_item = history_listbox.get(selected_index)
+            if " = " in selected_item:
+                eq = selected_item.split(" = ")[0]
+                equation_text.set(eq)
+                lcd_main.icursor(tk.END)
+                lcd_main.focus_set()
+    except Exception as e:
+        print(f"DEBUG - History select error: {e}")
 
 # ---------------------------------------------------------------------
 # MAIN GUI LAYOUT (Tkinter)
@@ -102,6 +163,10 @@ root.title("Scientific Calculator Client")
 root.geometry("770x520")
 root.configure(bg=WINDOW_BG)
 root.resizable(False, False)
+
+def bind_hover(btn, hover_bg, normal_bg):
+    btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg))
+    btn.bind("<Leave>", lambda e: btn.config(bg=normal_bg))
 
 # Divide the window into LEFT (Calculator) and RIGHT (History Sidebar)
 calculator_frame = tk.Frame(root, bg=WINDOW_BG, width=540)
@@ -133,16 +198,33 @@ lcd_indicator = tk.Label(
 )
 lcd_indicator.pack(side="right")
 
-lcd_main = tk.Label(
+# Validation logic to prevent typing random non-math characters
+def validate_input(new_value):
+    import re
+    return bool(re.match(r"^[0-9+\-*/.()^%\s\u03c0\u221a\u1d6a\u00b2a-zA-Z]*$", new_value))
+
+vcmd = (root.register(validate_input), "%P")
+
+# If display is exactly "0" and user types a digit or math start, clear the "0"
+def check_zero(event):
+    if equation_text.get() == "0" and event.char in "0123456789(sclat":
+        equation_text.set("")
+
+lcd_main = tk.Entry(
     lcd_screen,
     textvariable=equation_text,
-    anchor="e",
+    justify="right",
     bg="#c2e9fb",
     fg="#0a1d37",
     font=("Courier New", 26, "bold"),
-    height=2
+    bd=0,
+    highlightthickness=0,
+    insertbackground="#0a1d37",
+    validate="key",
+    validatecommand=vcmd
 )
-lcd_main.pack(fill="x")
+lcd_main.pack(fill="x", pady=10)
+lcd_main.bind("<Key>", check_zero)
 
 mode_frame = tk.Frame(calculator_frame, bg=WINDOW_BG)
 mode_frame.pack(fill="x", pady=(0, 8))
@@ -180,6 +262,53 @@ toggle_btn = tk.Button(
 )
 toggle_btn.pack(side="right", padx=5)
 
+def move_cursor_left():
+    try:
+        current_pos = lcd_main.index(tk.INSERT)
+        if current_pos > 0:
+            lcd_main.icursor(current_pos - 1)
+    except:
+        pass
+    lcd_main.focus_set()
+
+def move_cursor_right():
+    try:
+        current_pos = lcd_main.index(tk.INSERT)
+        lcd_main.icursor(current_pos + 1)
+    except:
+        pass
+    lcd_main.focus_set()
+
+right_arrow_btn = tk.Button(
+    mode_frame,
+    text="▶",
+    bg=SCI_BG,
+    fg=TEXT_COLOR,
+    font=(FONT_NAME, 8, "bold"),
+    bd=0,
+    relief="flat",
+    padx=8,
+    pady=3,
+    command=move_cursor_right
+)
+right_arrow_btn.pack(side="right", padx=2)
+bind_hover(right_arrow_btn, "#2a527c", SCI_BG)
+
+left_arrow_btn = tk.Button(
+    mode_frame,
+    text="◀",
+    bg=SCI_BG,
+    fg=TEXT_COLOR,
+    font=(FONT_NAME, 8, "bold"),
+    bd=0,
+    relief="flat",
+    padx=8,
+    pady=3,
+    command=move_cursor_left
+)
+left_arrow_btn.pack(side="right", padx=2)
+bind_hover(left_arrow_btn, "#2a527c", SCI_BG)
+
 keys_frame = tk.Frame(calculator_frame, bg=WINDOW_BG)
 keys_frame.pack(fill="both", expand=True)
 
@@ -187,10 +316,6 @@ for r in range(5):
     keys_frame.rowconfigure(r, weight=1)
 for c in range(7):
     keys_frame.columnconfigure(c, weight=1)
-
-def bind_hover(btn, hover_bg, normal_bg):
-    btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg))
-    btn.bind("<Leave>", lambda e: btn.config(bg=normal_bg))
 
 def create_button(text, row, col, bg_color, command_func):
     if bg_color == SCI_BG:
@@ -317,5 +442,15 @@ if test_history and test_history[0] == "Server Offline":
     print("    Please verify that server.py is running on port 5000.")
 else:
     print("\n[+] SUCCESS: Connected to API Server! History loaded successfully.")
+
+history_listbox.bind("<<ListboxSelect>>", on_history_select)
+
+# Bind Enter/Return to calculate, Escape to clear screen
+root.bind("<Return>", lambda e: calculate())
+root.bind("<Escape>", lambda e: clear())
+
+# Set initial focus and position cursor at the end
+lcd_main.focus_set()
+lcd_main.icursor(tk.END)
 
 root.mainloop()
