@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 # Load the environment variables from the local .env file
 load_dotenv()
-
+DATABASE_URL = "postgres://admin:my-test-password@localhost:5432/mydb"
 # Get the database connection URL
 DATABASE_URL = os.getenv("DATABASE_URL")
 
